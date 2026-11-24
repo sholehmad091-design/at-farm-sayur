@@ -57,7 +57,7 @@ footer{background:#102c1e;color:#d8e5da;padding:28px 0;font-size:13px}.foot{disp
 <section id="kontak"><div class="wrap"><div class="cta"><div><h2 id="contactTitle">Butuh sayur dan buah?</h2><p id="contactText">Hubungi AT FARM SAYUR untuk informasi produk dan pemesanan.</p></div><a class="btn light" id="contactWhatsapp" href="https://wa.me/6285715708602?text=Halo%20AT%20FARM%20SAYUR%2C%20saya%20ingin%20bertanya%20tentang%20produk%20dan%20pemesanan." target="_blank" rel="noopener">Chat WhatsApp</a></div><p class="notice" id="contactNote">WhatsApp pemesanan: +62 857-1570-8602. Alamat, jam operasional, dan area pengiriman dapat ditambahkan berikutnya.</p></div></section>
 </main>
 <button class="cart-float" id="openCart" type="button">🛒 Keranjang <span class="cart-count" id="cartCount">0</span> <span id="cartSummary">Lihat pesanan</span></button>
-<div class="cart-overlay" id="cartOverlay" role="dialog" aria-modal="true" aria-labelledby="cartTitle"><div class="cart-panel"><div class="cart-head"><h2 id="cartTitle">🛒 Keranjang Belanja</h2><button class="close-cart" id="closeCart" aria-label="Tutup">✕</button></div><div id="cartItems"></div><div class="cart-total" id="cartTotal">Belum ada produk dipilih</div><div class="customer-fields"><input id="customerName" placeholder="Nama pemesan (opsional)"><textarea id="customerAddress" placeholder="Alamat / catatan pesanan (opsional)"></textarea></div><div class="cart-actions"><button class="btn outline" id="clearCart" type="button">Kosongkan</button><button class="btn" id="sendOrder" type="button">Kirim Pesanan via WhatsApp</button></div><p class="cart-note">Harga belum ditampilkan karena akan dikonfirmasi oleh admin. Periksa kembali jumlah dan satuan sebelum mengirim.</p></div></div>
+<div class="cart-overlay" id="cartOverlay" role="dialog" aria-modal="true" aria-labelledby="cartTitle"><div class="cart-panel"><div class="cart-head"><h2 id="cartTitle">🛒 Keranjang Belanja</h2><button class="close-cart" id="closeCart" aria-label="Tutup">✕</button></div><div id="cartItems"></div><div class="cart-total" id="cartTotal">Belum ada produk dipilih</div><div class="customer-fields"><input id="customerName" placeholder="Nama pemesan (opsional)"><textarea id="customerAddress" placeholder="Alamat / catatan pesanan (opsional)"></textarea></div><div class="cart-actions"><button class="btn outline" id="clearCart" type="button">Kosongkan</button><button class="btn" id="sendOrder" type="button">Kirim Pesanan via WhatsApp</button></div><p class="cart-note">Periksa kembali jumlah dan satuan sebelum mengirim pesanan.</p></div></div>
 <footer><div class="wrap foot"><strong id="footerBrand">🌱 AT FARM SAYUR</strong><span id="footerText">© 2026 AT FARM SAYUR. Semua hak dilindungi.</span></div></footer>
 <script>
 // Setelah Apps Script dipublikasikan sebagai Web App, tempel URL /exec di bawah ini.
@@ -73,6 +73,42 @@ function loadProducts(){
 function renderProducts(){const grid=document.getElementById('productGrid');if(!products.length){grid.innerHTML='<p class="notice">Belum ada produk yang tersedia saat ini. Silakan hubungi kami melalui WhatsApp.</p>';return;}
  grid.innerHTML=products.map(p=>{const cat=p.category==='Sayuran'?'Sayuran':p.category==='Buah'?'Buah':'Bumbu';const visual=p.photo?`<img src="${esc(p.photo)}" alt="${esc(p.name)}" style="display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;object-position:50% 50%;margin:auto">`:(cat==='Sayuran'?'🥬':cat==='Buah'?'🍎':'🧄');const available=Number(p.stock)>0;const stockLabel=available?`Stok ${money(p.stock)} ${esc(p.unit)}`:'<strong style="color:#b42318">STOK HABIS</strong>';const action=available?`<div class="product-actions"><input class="qty" type="number" min="1" max="${Number(p.stock)}" step="1" value="1" aria-label="Jumlah ${esc(p.name)}"><span class="unit" style="display:flex;align-items:center">${esc(p.unit)}</span><button class="btn add-cart" type="button" data-id="${esc(p.id)}">+ Keranjang</button></div>`:`<div class="product-actions stock-empty"><span class="unit" style="color:#b42318;font-weight:700">Barang sedang habis</span></div>`;return `<article class="product ${available?'':'product-out-of-stock'}" data-cat="${cat}" data-name="${esc(p.name)}" data-id="${esc(p.id)}"><div class="product-visual">${visual}</div><div class="product-info"><h3>${esc(p.name)}</h3><p>${esc(p.description||'Produk segar AT FARM SAYUR.')}</p><div class="product-bottom"><span class="price">Rp ${money(p.price)} / ${esc(p.unit)} · ${stockLabel}</span>${action}</div></div></article>`}).join('');filterProducts();grid.querySelectorAll('.add-cart').forEach(b=>b.addEventListener('click',()=>addToCart(b)));
 }
+
+function loadSiteSettings(){
+ const cb='atFarmSite_'+Date.now()+'_'+Math.floor(Math.random()*100000);
+ window[cb]=data=>{try{delete window[cb];applySiteSettings(data||{});}catch(err){console.error('Gagal menerapkan pengaturan website:',err);}};
+ const sc=document.createElement('script');
+ sc.src=AT_FARM_API_URL+'?action=site&callback='+cb+'&_='+Date.now();
+ sc.onerror=()=>{delete window[cb];console.warn('Pengaturan website tidak dapat dimuat. Periksa deployment Apps Script versi terbaru.');};
+ document.body.appendChild(sc);
+}
+function applySiteSettings(s){
+ const put=(id,key)=>{const el=document.getElementById(id);if(el&&s[key]!==undefined&&String(s[key]).trim()!=='')el.textContent=s[key];};
+ [
+ ['heroEyebrow','heroEyebrow'],['heroTitle','heroTitle'],['heroText','heroText'],['heroStamp','heroStamp'],
+ ['categoryTitle','categoryTitle'],['categorySubtitle','categorySubtitle'],
+ ['productsTitle','productsTitle'],['productsSubtitle','productsSubtitle'],
+ ['catIcon1','catIcon1'],['catName1','catName1'],['catDesc1','catDesc1'],
+ ['catIcon2','catIcon2'],['catName2','catName2'],['catDesc2','catDesc2'],
+ ['catIcon3','catIcon3'],['catName3','catName3'],['catDesc3','catDesc3'],
+ ['aboutTagline','aboutTagline'],['aboutBrand','aboutBrand'],['aboutTitle','aboutTitle'],
+ ['aboutText1','aboutText1'],['aboutText2','aboutText2'],
+ ['contactTitle','contactTitle'],['contactText','contactText'],['contactNote','contactNote'],
+ ['footerBrand','footerBrand'],['footerText','footerText']
+ ].forEach(([id,key])=>put(id,key));
+ if(s.brandName)document.title=s.brandName+' — Sayur & Buah Segar';
+ if(s.logoUrl){const logo=document.getElementById('siteLogo');if(logo)logo.src=s.logoUrl;}
+ if(s.heroImageUrl){const img=document.getElementById('heroImage');if(img)img.src=s.heroImageUrl;}
+ if(s.aboutImageUrl){
+   const card=document.getElementById('aboutCard');
+   if(card)card.innerHTML='<img src="'+esc(s.aboutImageUrl)+'" alt="Tentang '+esc(s.brandName||'AT FARM SAYUR')+'"><h3 id="aboutTagline" style="color:#173d2a">'+esc(s.aboutTagline||'')+'</h3><p id="aboutBrand" style="margin-bottom:0">'+esc(s.aboutBrand||s.brandName||'AT FARM SAYUR')+'</p>';
+ }else put('aboutEmoji','aboutEmoji');
+ const phone=String(s.whatsapp||'6285715708602').replace(/\D/g,'');
+ const contact=document.getElementById('contactWhatsapp');
+ if(contact)contact.href='https://wa.me/'+phone+'?text='+encodeURIComponent('Halo AT FARM SAYUR, saya ingin bertanya tentang produk dan pemesanan.');
+ window.AT_FARM_WHATSAPP=phone;
+}
+
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function filterProducts(){const q=document.getElementById('search').value.toLowerCase();document.querySelectorAll('.product').forEach(p=>{const okCat=active==='Semua'||p.dataset.cat===active;const okText=p.dataset.name.toLowerCase().includes(q);p.style.display=okCat&&okText?'':'none';});}
 document.querySelectorAll('.filter').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');active=b.dataset.cat;filterProducts();}));document.getElementById('search').addEventListener('input',filterProducts);
@@ -80,7 +116,7 @@ function cartQty(){return Object.values(cart).reduce((sum,item)=>sum+item.qty,0)
 function renderCart(){const entries=Object.entries(cart),count=cartQty();document.getElementById('cartCount').textContent=count;document.getElementById('cartSummary').textContent=entries.length?`${entries.length} jenis produk`:'Lihat pesanan';const target=document.getElementById('cartItems');if(!entries.length){target.innerHTML='<div class="cart-empty">Keranjang masih kosong.<br>Pilih beberapa produk dari katalog terlebih dahulu.</div>';document.getElementById('cartTotal').textContent='Belum ada produk dipilih';return;}target.innerHTML=entries.map(([key,item])=>`<div class="cart-row"><div><strong>${esc(item.name)}</strong><small>Stok tersedia: ${item.stock} ${esc(item.unit)}</small></div><input type="number" min="1" max="${item.stock}" step="1" value="${item.qty}" aria-label="Jumlah ${esc(item.name)}" data-edit="${esc(key)}"><button class="remove-item" type="button" data-remove="${esc(key)}">Hapus</button></div>`).join('');document.getElementById('cartTotal').textContent=`${entries.length} jenis produk • ${count} total satuan`;target.querySelectorAll('[data-edit]').forEach(input=>input.addEventListener('change',()=>{const item=cart[input.dataset.edit],q=Math.max(1,parseInt(input.value,10)||1);if(q>item.stock){alert('Jumlah melebihi stok yang tersedia.');input.value=item.qty;return;}item.qty=q;renderCart()}));target.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{delete cart[b.dataset.remove];renderCart()}));}
 function addToCart(button){const p=products.find(x=>x.id===button.dataset.id),card=button.closest('.product'),qty=Math.max(1,parseInt(card.querySelector('.qty').value,10)||1),key=p.id;if(!p||qty>p.stock){alert('Jumlah melebihi stok yang tersedia.');return;}if(cart[key]){if(cart[key].qty+qty>p.stock){alert('Jumlah di keranjang melebihi stok yang tersedia.');return;}cart[key].qty+=qty;}else cart[key]={id:p.id,name:p.name,qty,unit:p.unit,stock:p.stock};renderCart();button.textContent='✓ Ditambahkan';setTimeout(()=>button.textContent='+ Keranjang',1100);}
 const overlay=document.getElementById('cartOverlay');document.getElementById('openCart').addEventListener('click',()=>{renderCart();overlay.classList.add('show')});document.getElementById('closeCart').addEventListener('click',()=>overlay.classList.remove('show'));overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('show')});document.getElementById('clearCart').addEventListener('click',()=>{Object.keys(cart).forEach(k=>delete cart[k]);renderCart()});
-document.getElementById('sendOrder').addEventListener('click',()=>{const entries=Object.values(cart);if(!entries.length){alert('Keranjang masih kosong.');return;}const name=document.getElementById('customerName').value.trim(),address=document.getElementById('customerAddress').value.trim();let message='Halo AT FARM SAYUR, saya ingin memesan:\n\n'+entries.map((item,i)=>`${i+1}. ${item.name} — ${item.qty} ${item.unit}`).join('\n');if(name)message+='\n\nNama: '+name;if(address)message+='\nAlamat/Catatan: '+address;message+='\n\nMohon konfirmasi harga dan ketersediaannya. Terima kasih.';window.open('https://wa.me/6285715708602?text='+encodeURIComponent(message),'_blank','noopener');});
+document.getElementById('sendOrder').addEventListener('click',()=>{const entries=Object.values(cart);if(!entries.length){alert('Keranjang masih kosong.');return;}const name=document.getElementById('customerName').value.trim(),address=document.getElementById('customerAddress').value.trim();let message='Halo AT FARM SAYUR, saya ingin memesan:\n\n'+entries.map((item,i)=>`${i+1}. ${item.name} — ${item.qty} ${item.unit}`).join('\n');if(name)message+='\n\nNama: '+name;if(address)message+='\nAlamat/Catatan: '+address;message+='\n\nMohon konfirmasi harga dan ketersediaannya. Terima kasih.';window.open('https://wa.me/'+(window.AT_FARM_WHATSAPP||'6285715708602')+'?text='+encodeURIComponent(message),'_blank','noopener');});
 renderCart();loadProducts();loadSiteSettings();
 </script>
 </body></html>
