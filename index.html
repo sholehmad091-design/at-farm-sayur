@@ -44,7 +44,16 @@ body.site-load-error #siteLoadError{display:block}
 .about-card img{width:100%;height:100%;max-height:300px;object-fit:cover;object-position:center;border-radius:16px}
 .logo{object-fit:contain}
 
+
+/* Pemilih titik lokasi pengiriman */
+.location-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.location-tools .btn{flex:1;min-width:150px}
+.location-status{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.5}
+#deliveryMap{height:270px;width:100%;border:1px solid #dce5dc;border-radius:12px;overflow:hidden;margin-top:10px;background:#eef3e9;z-index:1}
+.location-coords{font-size:12px;color:var(--green);font-weight:700;margin-top:7px;word-break:break-word}
+@media(max-width:430px){#deliveryMap{height:240px}.location-tools .btn{font-size:12px;padding:10px 12px}}
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 </head>
 <body class="site-loading">
 <div id="siteLoading"><div class="loading-card"><strong>🌱 AT FARM SAYUR</strong><span>Memuat foto dan informasi website terbaru…</span></div></div>
@@ -68,8 +77,65 @@ body.site-load-error #siteLoadError{display:block}
 <section id="kontak"><div class="wrap"><div class="cta"><div><h2 id="contactTitle">Butuh sayur dan buah?</h2><p id="contactText">Hubungi AT FARM SAYUR untuk informasi produk dan pemesanan.</p></div><a class="btn light" id="contactWhatsapp" href="https://wa.me/6285715708602?text=Halo%20AT%20FARM%20SAYUR%2C%20saya%20ingin%20bertanya%20tentang%20produk%20dan%20pemesanan." target="_blank" rel="noopener">Chat WhatsApp</a></div><p class="notice" id="contactNote">WhatsApp pemesanan: +62 857-1570-8602. Alamat, jam operasional, dan area pengiriman dapat ditambahkan berikutnya.</p></div></section>
 </main>
 <button class="cart-float" id="openCart" type="button">🛒 Keranjang <span class="cart-count" id="cartCount">0</span> <span id="cartSummary">Lihat pesanan</span></button>
-<div class="cart-overlay" id="cartOverlay" role="dialog" aria-modal="true" aria-labelledby="cartTitle"><div class="cart-panel"><div class="cart-head"><h2 id="cartTitle">🛒 Keranjang Belanja</h2><button class="close-cart" id="closeCart" aria-label="Tutup">✕</button></div><div id="cartItems"></div><div class="cart-total" id="cartTotal">Belum ada produk dipilih</div><div class="customer-fields"><input id="customerName" placeholder="Nama pemesan (opsional)"><textarea id="customerAddress" placeholder="Alamat / catatan pesanan (opsional)"></textarea></div><div class="cart-actions"><button class="btn outline" id="clearCart" type="button">Kosongkan</button><button class="btn" id="sendOrder" type="button">Kirim Pesanan via WhatsApp</button></div><p class="cart-note">Periksa kembali jumlah dan satuan sebelum mengirim pesanan.</p></div></div>
+<div class="cart-overlay" id="cartOverlay" role="dialog" aria-modal="true" aria-labelledby="cartTitle"><div class="cart-panel"><div class="cart-head"><h2 id="cartTitle">🛒 Keranjang Belanja</h2><button class="close-cart" id="closeCart" aria-label="Tutup">✕</button></div><div id="cartItems"></div><div class="cart-total" id="cartTotal">Belum ada produk dipilih</div><div class="customer-fields">
+<input id="customerName" placeholder="Nama pemesan (opsional)">
+<textarea id="customerAddress" placeholder="Alamat lengkap / patokan rumah atau toko"></textarea>
+<div class="location-section">
+ <strong>📍 Titik Lokasi Pengiriman</strong>
+ <div class="location-tools">
+  <button class="btn outline" id="showMapPicker" type="button">Pilih Titik di Maps</button>
+  <button class="btn outline" id="useMyLocation" type="button">◎ Gunakan Lokasi Saya</button>
+ </div>
+ <p class="location-status" id="locationStatus">Belum memilih titik lokasi. Pilih pada peta atau gunakan GPS HP Anda.</p>
+ <div id="mapPickerPanel" hidden>
+  <div id="deliveryMap" aria-label="Peta pemilihan titik pengiriman"></div>
+  <div class="location-coords" id="locationCoords">Koordinat belum dipilih</div>
+  <p class="location-status">Geser pin atau ketuk peta untuk menentukan titik rumah/toko. Pastikan pin tepat sebelum mengirim pesanan.</p>
+ </div>
+</div>
+</div><div class="cart-actions"><button class="btn outline" id="clearCart" type="button">Kosongkan</button><button class="btn" id="sendOrder" type="button">Kirim Pesanan via WhatsApp</button></div><p class="cart-note">Periksa kembali jumlah dan satuan sebelum mengirim pesanan.</p></div></div>
 <footer><div class="wrap foot"><strong id="footerBrand">🌱 AT FARM SAYUR</strong><span id="footerText">© 2026 AT FARM SAYUR. Semua hak dilindungi.</span></div></footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+let deliveryMap=null,deliveryMarker=null,deliveryPoint=null;
+function setDeliveryPoint(lat,lng,source){
+ deliveryPoint={lat:Number(lat),lng:Number(lng)};
+ const coordText=deliveryPoint.lat.toFixed(6)+', '+deliveryPoint.lng.toFixed(6);
+ const coords=document.getElementById('locationCoords'); if(coords)coords.textContent='Koordinat: '+coordText;
+ const status=document.getElementById('locationStatus'); if(status)status.textContent='Titik lokasi sudah dipilih'+(source?' ('+source+')':'')+'. Anda masih bisa menggeser pin untuk memperbaiki posisi.';
+ if(deliveryMarker)deliveryMarker.setLatLng([deliveryPoint.lat,deliveryPoint.lng]);
+}
+function initDeliveryMap(){
+ const panel=document.getElementById('mapPickerPanel'); if(!panel)return;
+ panel.hidden=false;
+ if(typeof L==='undefined'){
+  document.getElementById('locationStatus').textContent='Peta gagal dimuat. Periksa koneksi internet, lalu coba lagi.';return;
+ }
+ if(!deliveryMap){
+  const start=deliveryPoint?[deliveryPoint.lat,deliveryPoint.lng]:[-2.5,118];
+  deliveryMap=L.map('deliveryMap').setView(start,deliveryPoint?16:5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(deliveryMap);
+  deliveryMarker=L.marker(start,{draggable:true}).addTo(deliveryMap);
+  deliveryMarker.on('dragend',()=>{const p=deliveryMarker.getLatLng();setDeliveryPoint(p.lat,p.lng,'pin digeser');});
+  deliveryMap.on('click',e=>setDeliveryPoint(e.latlng.lat,e.latlng.lng,'peta dipilih'));
+  if(deliveryPoint)setDeliveryPoint(deliveryPoint.lat,deliveryPoint.lng,'lokasi tersimpan sementara');
+ }
+ setTimeout(()=>deliveryMap.invalidateSize(),180);
+}
+document.addEventListener('DOMContentLoaded',()=>{
+ const show=document.getElementById('showMapPicker');
+ if(show)show.addEventListener('click',()=>{const panel=document.getElementById('mapPickerPanel');if(panel.hidden)initDeliveryMap();else panel.hidden=true;});
+ const gps=document.getElementById('useMyLocation');
+ if(gps)gps.addEventListener('click',()=>{
+  if(!navigator.geolocation){alert('Perangkat/browser ini tidak mendukung GPS. Silakan pilih titik secara manual di peta.');return;}
+  gps.disabled=true;gps.textContent='Mencari lokasi…';
+  navigator.geolocation.getCurrentPosition(pos=>{
+   const {latitude,longitude}=pos.coords;setDeliveryPoint(latitude,longitude,'GPS perangkat');initDeliveryMap();
+   deliveryMap.setView([latitude,longitude],17);gps.disabled=false;gps.textContent='◎ Gunakan Lokasi Saya';
+  },err=>{let msg='Lokasi tidak berhasil diambil.';if(err.code===1)msg='Izin lokasi ditolak. Izinkan akses lokasi di browser atau pilih titik secara manual.';else if(err.code===2)msg='GPS tidak menemukan lokasi. Coba lagi atau pilih titik manual.';else if(err.code===3)msg='Waktu pencarian lokasi habis. Coba lagi.';alert(msg);gps.disabled=false;gps.textContent='◎ Gunakan Lokasi Saya';},{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+ });
+});
+</script>
 <script>
 // Setelah Apps Script dipublikasikan sebagai Web App, tempel URL /exec di bawah ini.
 const AT_FARM_API_URL = 'https://script.google.com/macros/s/AKfycbyLH7EOw90hsZnG3rhAkKGz8aqZOH6Mw9lVxxYlINbOlGlWpx4msuwGZQ-eqmFJIEWQ/exec';
@@ -159,8 +225,18 @@ document.querySelectorAll('.filter').forEach(b=>b.addEventListener('click',()=>{
 function cartQty(){return Object.values(cart).reduce((sum,item)=>sum+item.qty,0)}
 function renderCart(){const entries=Object.entries(cart),count=cartQty();document.getElementById('cartCount').textContent=count;document.getElementById('cartSummary').textContent=entries.length?`${entries.length} jenis produk`:'Lihat pesanan';const target=document.getElementById('cartItems');if(!entries.length){target.innerHTML='<div class="cart-empty">Keranjang masih kosong.<br>Pilih beberapa produk dari katalog terlebih dahulu.</div>';document.getElementById('cartTotal').textContent='Belum ada produk dipilih';return;}target.innerHTML=entries.map(([key,item])=>`<div class="cart-row"><div><strong>${esc(item.name)}</strong><small>Stok tersedia: ${item.stock} ${esc(item.unit)}</small></div><input type="number" min="1" max="${item.stock}" step="1" value="${item.qty}" aria-label="Jumlah ${esc(item.name)}" data-edit="${esc(key)}"><button class="remove-item" type="button" data-remove="${esc(key)}">Hapus</button></div>`).join('');document.getElementById('cartTotal').textContent=`${entries.length} jenis produk • ${count} total satuan`;target.querySelectorAll('[data-edit]').forEach(input=>input.addEventListener('change',()=>{const item=cart[input.dataset.edit],q=Math.max(1,parseInt(input.value,10)||1);if(q>item.stock){alert('Jumlah melebihi stok yang tersedia.');input.value=item.qty;return;}item.qty=q;renderCart()}));target.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{delete cart[b.dataset.remove];renderCart()}));}
 function addToCart(button){const p=products.find(x=>x.id===button.dataset.id),card=button.closest('.product'),qty=Math.max(1,parseInt(card.querySelector('.qty').value,10)||1),key=p.id;if(!p||qty>p.stock){alert('Jumlah melebihi stok yang tersedia.');return;}if(cart[key]){if(cart[key].qty+qty>p.stock){alert('Jumlah di keranjang melebihi stok yang tersedia.');return;}cart[key].qty+=qty;}else cart[key]={id:p.id,name:p.name,qty,unit:p.unit,stock:p.stock};renderCart();button.textContent='✓ Ditambahkan';setTimeout(()=>button.textContent='+ Keranjang',1100);}
-const overlay=document.getElementById('cartOverlay');document.getElementById('openCart').addEventListener('click',()=>{renderCart();overlay.classList.add('show')});document.getElementById('closeCart').addEventListener('click',()=>overlay.classList.remove('show'));overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('show')});document.getElementById('clearCart').addEventListener('click',()=>{Object.keys(cart).forEach(k=>delete cart[k]);renderCart()});
-document.getElementById('sendOrder').addEventListener('click',()=>{const entries=Object.values(cart);if(!entries.length){alert('Keranjang masih kosong.');return;}const name=document.getElementById('customerName').value.trim(),address=document.getElementById('customerAddress').value.trim();let message='Halo AT FARM SAYUR, saya ingin memesan:\n\n'+entries.map((item,i)=>`${i+1}. ${item.name} — ${item.qty} ${item.unit}`).join('\n');if(name)message+='\n\nNama: '+name;if(address)message+='\nAlamat/Catatan: '+address;message+='\n\nMohon konfirmasi harga dan ketersediaannya. Terima kasih.';window.open('https://wa.me/'+(window.AT_FARM_WHATSAPP||'6285715708602')+'?text='+encodeURIComponent(message),'_blank','noopener');});
+const overlay=document.getElementById('cartOverlay');document.getElementById('openCart').addEventListener('click',()=>{renderCart();overlay.classList.add('show');if(deliveryMap)setTimeout(()=>deliveryMap.invalidateSize(),180)});document.getElementById('closeCart').addEventListener('click',()=>overlay.classList.remove('show'));overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('show')});document.getElementById('clearCart').addEventListener('click',()=>{Object.keys(cart).forEach(k=>delete cart[k]);renderCart()});
+document.getElementById('sendOrder').addEventListener('click',()=>{
+ const entries=Object.values(cart);if(!entries.length){alert('Keranjang masih kosong.');return;}
+ const name=document.getElementById('customerName').value.trim(),address=document.getElementById('customerAddress').value.trim();
+ let message='Halo AT FARM SAYUR, saya ingin memesan:\n\n'+entries.map((item,i)=>`${i+1}. ${item.name} — ${item.qty} ${item.unit}`).join('\n');
+ if(name)message+='\n\nNama: '+name;
+ if(address)message+='\nAlamat/Catatan: '+address;
+ if(deliveryPoint){const lat=deliveryPoint.lat.toFixed(6),lng=deliveryPoint.lng.toFixed(6);message+='\nTitik Lokasi: https://www.google.com/maps?q='+lat+','+lng+'\nKoordinat: '+lat+', '+lng;}
+ else message+='\nLokasi: Belum menentukan titik peta';
+ message+='\n\nMohon konfirmasi harga dan ketersediaannya. Terima kasih.';
+ window.open('https://wa.me/'+(window.AT_FARM_WHATSAPP||'6285715708602')+'?text='+encodeURIComponent(message),'_blank','noopener');
+});
 renderCart();loadProducts();loadSiteSettings();
 </script>
 </body></html>
